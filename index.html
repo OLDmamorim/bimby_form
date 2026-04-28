@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8" />
+<title>Experiência Bimby® — Formulário</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #f3f5f1; font-family: 'Inter', sans-serif; color: #222; }
+  #root { min-height: 100vh; }
+
+  /* Variant chooser tabs */
+  .variant-tabs {
+    position: sticky; top: 0; z-index: 10;
+    background: #fff; border-bottom: 1px solid #eef0ec;
+    padding: 12px 20px; display: flex; gap: 8px; align-items: center;
+  }
+  .variant-tabs .brand { font-weight: 800; color: #2E9E60; font-size: 16px; margin-right: auto; letter-spacing: -0.5px; }
+  .variant-tabs button {
+    padding: 8px 14px; border-radius: 8px; border: 1px solid #eef0ec;
+    background: #fff; cursor: pointer; font-size: 12px; font-family: inherit; color: #444;
+  }
+  .variant-tabs button.on { background: #2E9E60; color: #fff; border-color: #2E9E60; }
+  .variant-tabs .saved { font-size: 11px; color: #999; margin-right: 12px; }
+
+  .variant-shell { padding: 24px 20px 60px; }
+
+  /* PDF preview area: hidden on screen by default, but shown when previewing */
+  .pdf-print-only { display: none; }
+  body.preview-mode .pdf-print-only {
+    display: flex; justify-content: center; padding: 20px 0 60px;
+    background: #ddd; min-height: 100vh;
+  }
+  body.preview-mode .variant-shell { display: none; }
+
+  @media print {
+    @page { size: 210mm 297mm; margin: 0; }
+    html, body {
+      background: #fff !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      width: 210mm !important;
+      height: 297mm !important;
+    }
+    .variant-tabs, .variant-shell { display: none !important; }
+    .pdf-print-only {
+      display: block !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      background: #fff !important;
+      min-height: 0 !important;
+      width: 210mm !important;
+      height: 297mm !important;
+      overflow: hidden !important;
+    }
+    .pdf-form {
+      box-shadow: none !important;
+      width: 794px !important;
+      height: 1123px !important;
+      transform-origin: top left !important;
+      page-break-after: avoid;
+      page-break-inside: avoid;
+      overflow: hidden !important;
+    }
+    *, *::before, *::after {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      color-adjust: exact !important;
+    }
+  }
+</style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+  <script type="text/babel" src="src/schema.jsx"></script>
+  <script type="text/babel" src="src/brand.jsx"></script>
+  <script type="text/babel" src="src/form-controls.jsx"></script>
+  <script type="text/babel" src="src/signature-pad.jsx"></script>
+  <script type="text/babel" src="src/pdf-form.jsx"></script>
+  <script type="text/babel" src="src/variant-wizard.jsx"></script>
+  <script type="text/babel" src="src/variants.jsx"></script>
+
+  <script type="text/babel">
+    const STORAGE_KEY = "bimby-form-v1";
+
+    function todayBR() {
+      const d = new Date();
+      const dd = String(d.getDate()).padStart(2, "0");
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      return { ddmmyyyy: `${dd}${mm}${d.getFullYear()}`, iso: `${d.getFullYear()}-${mm}-${dd}` };
+    }
+
+    function App() {
+      const [variant, setVariant] = React.useState(() => localStorage.getItem("bimby-variant") || "wizard");
+      const [savedAt, setSavedAt] = React.useState(null);
+      const [previewing, setPreviewing] = React.useState(false);
+
+      React.useEffect(() => {
+        document.body.classList.toggle("preview-mode", previewing);
+      }, [previewing]);
+
+      const [data, setData] = React.useState(() => {
+        try {
+          const stored = localStorage.getItem(STORAGE_KEY);
+          if (stored) return JSON.parse(stored);
+        } catch (e) {}
+        const t = todayBR();
+        return { data: t.ddmmyyyy, dataISO: t.iso };
+      });
+
+      // Autosave
+      React.useEffect(() => {
+        const t = setTimeout(() => {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+          setSavedAt(new Date());
+        }, 400);
+        return () => clearTimeout(t);
+      }, [data]);
+
+      // Persist variant
+      React.useEffect(() => {
+        localStorage.setItem("bimby-variant", variant);
+      }, [variant]);
+
+      const setField = React.useCallback((k, v) => {
+        setData((d) => ({ ...d, [k]: v }));
+      }, []);
+
+      const variants = [
+        { id: "wizard", label: "1. Wizard multi-passo", Comp: WizardVariant },
+        { id: "single", label: "2. Página única", Comp: SinglePageVariant },
+        { id: "split", label: "3. Lado-a-lado com pré-visualização", Comp: SplitVariant },
+      ];
+      const Cur = variants.find((v) => v.id === variant)?.Comp || WizardVariant;
+
+      const savedLabel = savedAt
+        ? `Guardado às ${savedAt.toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" })}`
+        : "";
+
+      return (
+        <>
+          <div className="variant-tabs">
+            <span className="brand">bimby<sup style={{ fontSize: 10 }}>®</sup></span>
+            {variants.map((v) => (
+              <button key={v.id} className={variant === v.id ? "on" : ""} onClick={() => setVariant(v.id)}>
+                {v.label}
+              </button>
+            ))}
+            <span className="saved">{savedLabel}</span>
+            <button onClick={() => setPreviewing(p => !p)} style={{ background: previewing ? "#1f7a48" : "#fff", color: previewing ? "#fff" : "#1f7a48", borderColor: "#1f7a48" }}>
+              {previewing ? "← Voltar" : "👁 Pré-visualizar PDF"}
+            </button>
+            <button onClick={() => window.print()} style={{ background: "#D9192C", color: "#fff", borderColor: "#D9192C" }}>
+              📄 Exportar PDF
+            </button>
+          </div>
+
+          <div className="variant-shell">
+            <Cur data={data} setField={setField} />
+          </div>
+
+          {/* Always rendered, but only visible when printing */}
+          <div className="pdf-print-only">
+            <PDFForm data={data} signatureDataUrl={data.assinatura} />
+          </div>
+        </>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById("root"));
+    root.render(<App />);
+  </script>
+</body>
+</html>
