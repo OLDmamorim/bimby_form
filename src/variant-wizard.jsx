@@ -11,7 +11,7 @@ const STEPS = [
         <Field label="Tipo de experiência">
           <Pills options={FORM_SCHEMA.tipoExperiencia.options} value={data.tipoExperiencia} onChange={(v) => set("tipoExperiencia", v)} />
         </Field>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        <div className="resp-2col" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
           <Field label="Data">
             <TextInput type="date" value={data.dataISO} onChange={(v) => {
               set("dataISO", v);
@@ -35,15 +35,15 @@ const STEPS = [
     subtitle: "Para podermos contactar o cliente.",
     render: ({ data, set }) => (
       <>
-        <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16 }}>
+        <div className="resp-2col" style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16 }}>
           <Field label="Nome"><TextInput value={data.nome} onChange={(v) => set("nome", v)} /></Field>
           <Field label="Telefone"><TextInput value={data.tel} onChange={(v) => set("tel", v)} validate="phone" placeholder="9 dígitos" /></Field>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: 16 }}>
+        <div className="resp-2col" style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: 16 }}>
           <Field label="Email"><TextInput value={data.email} onChange={(v) => set("email", v)} validate="email" type="email" /></Field>
           <Field label="Morada"><TextInput value={data.morada} onChange={(v) => set("morada", v)} /></Field>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: 16 }}>
+        <div className="resp-3col" style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: 16 }}>
           <Field label="Localidade"><TextInput value={data.localidade} onChange={(v) => set("localidade", v)} /></Field>
           <Field label="Cód. Postal"><TextInput value={data.codPostal} onChange={(v) => set("codPostal", v)} validate="postal" placeholder="0000-000" /></Field>
           <Field label="Nº pessoas em casa"><TextInput value={data.numPessoas} onChange={(v) => set("numPessoas", v)} type="number" /></Field>
