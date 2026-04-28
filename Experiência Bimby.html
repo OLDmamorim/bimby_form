@@ -126,6 +126,7 @@
   <script type="text/babel" src="src/pdf-form.jsx"></script>
   <script type="text/babel" src="src/variant-wizard.jsx"></script>
   <script type="text/babel" src="src/variants.jsx"></script>
+  <script type="text/babel" src="src/mobile-wizard.jsx"></script>
 
   <script type="text/babel">
     const STORAGE_KEY = "bimby-form-v1";
@@ -205,10 +206,22 @@
       });
     }
 
+    function useIsMobile(breakpoint = 720) {
+      const [is, setIs] = React.useState(() => typeof window !== 'undefined' && window.innerWidth <= breakpoint);
+      React.useEffect(() => {
+        const onR = () => setIs(window.innerWidth <= breakpoint);
+        window.addEventListener('resize', onR);
+        return () => window.removeEventListener('resize', onR);
+      }, [breakpoint]);
+      return is;
+    }
+
     function App() {
+      const isMobile = useIsMobile();
       const [variant, setVariant] = React.useState(() => localStorage.getItem("bimby-variant") || "wizard");
       const [savedAt, setSavedAt] = React.useState(null);
       const [previewing, setPreviewing] = React.useState(false);
+      const [mobileExited, setMobileExited] = React.useState(false);
 
       React.useEffect(() => {
         document.body.classList.toggle("preview-mode", previewing);
@@ -252,6 +265,18 @@
         ? `Guardado às ${savedAt.toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" })}`
         : "";
 
+      // On mobile, show the full-screen wizard unless user explicitly exited it
+      if (isMobile && !mobileExited && !previewing) {
+        return (
+          <MobileWizard
+            data={data}
+            setField={setField}
+            onExit={() => setMobileExited(true)}
+            onExport={exportPDF}
+          />
+        );
+      }
+
       return (
         <>
           <div className="variant-tabs">
@@ -269,6 +294,11 @@
             </select>
             <span className="saved">{savedLabel}</span>
             <div className="actions" style={{ display: "flex", gap: 8 }}>
+              {isMobile && (
+                <button onClick={() => { setMobileExited(false); setPreviewing(false); }} style={{ background: "#fff", color: "#1f7a48", borderColor: "#1f7a48" }}>
+                  ← Wizard
+                </button>
+              )}
               <button onClick={() => setPreviewing(p => !p)} style={{ background: previewing ? "#1f7a48" : "#fff", color: previewing ? "#fff" : "#1f7a48", borderColor: "#1f7a48" }}>
                 {previewing ? "← Voltar" : "👁 Pré-visualizar"}
               </button>
