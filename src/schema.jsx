@@ -87,7 +87,8 @@ const FORM_SCHEMA = {
   },
 
   maravilhas: {
-    label: "Qual das 7 Maravilhas Bimby® fez mais sentido para si?",
+    label: "Qual das 7 Maravilhas Bimby® fez mais sentido para si? (pode escolher várias)",
+    multi: true,
     options: [
       { id: "feito_casa", label: "Confiamos no que é feito em casa" },
       { id: "janela_mundo", label: "As nossas cozinhas são uma janela para o mundo" },

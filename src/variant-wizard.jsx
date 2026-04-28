@@ -102,8 +102,8 @@ const STEPS = [
     subtitle: "Reações e benefícios que o cliente identificou.",
     render: ({ data, set }) => (
       <>
-        <Field label="Qual das 7 Maravilhas Bimby® fez mais sentido para si?">
-          <Pills options={FORM_SCHEMA.maravilhas.options} value={data.maravilhas} onChange={(v) => set("maravilhas", v)} />
+        <Field label="Qual das 7 Maravilhas Bimby® fez mais sentido para si? (pode escolher várias)">
+          <Pills multi options={FORM_SCHEMA.maravilhas.options} value={data.maravilhas} onChange={(v) => set("maravilhas", v)} />
         </Field>
         <Field label="O que mais gostou desta experiência?"><TextArea value={data.qGostouExperiencia} onChange={(v) => set("qGostouExperiencia", v)} /></Field>
         <Field label="Como é que a Bimby® transformaria o seu dia a dia?"><TextArea value={data.qTransformaria} onChange={(v) => set("qTransformaria", v)} /></Field>
