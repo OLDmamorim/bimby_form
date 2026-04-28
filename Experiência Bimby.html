@@ -9,7 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   * { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; background: #f3f5f1; font-family: 'Inter', sans-serif; color: #222; }
+  html, body { margin: 0; padding: 0; background: #f3f5f1; font-family: 'Inter', sans-serif; color: #222; -webkit-text-size-adjust: 100%; }
   #root { min-height: 100vh; }
 
   /* Variant chooser tabs */
@@ -17,16 +17,55 @@
     position: sticky; top: 0; z-index: 10;
     background: #fff; border-bottom: 1px solid #eef0ec;
     padding: 12px 20px; display: flex; gap: 8px; align-items: center;
+    flex-wrap: wrap;
   }
   .variant-tabs .brand { font-weight: 800; color: #2E9E60; font-size: 16px; margin-right: auto; letter-spacing: -0.5px; }
   .variant-tabs button {
     padding: 8px 14px; border-radius: 8px; border: 1px solid #eef0ec;
     background: #fff; cursor: pointer; font-size: 12px; font-family: inherit; color: #444;
+    min-height: 40px;
   }
   .variant-tabs button.on { background: #2E9E60; color: #fff; border-color: #2E9E60; }
   .variant-tabs .saved { font-size: 11px; color: #999; margin-right: 12px; }
 
   .variant-shell { padding: 24px 20px 60px; }
+
+  /* MOBILE — under 720px */
+  @media (max-width: 720px) {
+    .variant-tabs {
+      padding: 10px 12px; gap: 6px;
+      position: sticky;
+    }
+    .variant-tabs .brand { font-size: 14px; flex: 1 1 auto; }
+    .variant-tabs .saved { display: none; }
+    .variant-tabs .variant-picker { display: block !important; }
+    .variant-tabs .variant-buttons { display: none; }
+    .variant-tabs button {
+      padding: 10px 12px; font-size: 13px; min-height: 44px;
+    }
+    .variant-tabs .actions {
+      width: 100%; display: flex; gap: 6px; order: 2;
+    }
+    .variant-tabs .actions button { flex: 1; }
+    .variant-shell { padding: 14px 12px 60px; }
+    body.preview-mode .pdf-print-only {
+      padding: 0; background: #ddd;
+      overflow-x: auto;
+      align-items: flex-start;
+    }
+    /* Scale down PDF preview on mobile so it fits the screen */
+    body.preview-mode .pdf-form {
+      transform: scale(min(1, calc((100vw - 16px) / 794)));
+      transform-origin: top center;
+      margin-bottom: -700px; /* trim the empty space below scaled preview */
+    }
+  }
+  @media (min-width: 721px) {
+    .variant-tabs .variant-picker { display: none; }
+  }
+  @media (max-width: 600px) {
+    .resp-2col, .resp-3col { grid-template-columns: 1fr !important; }
+  }
 
   /* PDF preview area: hidden on screen by default, but shown when previewing */
   .pdf-print-only { display: none; }
@@ -98,6 +137,74 @@
       return { ddmmyyyy: `${dd}${mm}${d.getFullYear()}`, iso: `${d.getFullYear()}-${mm}-${dd}` };
     }
 
+    // Generate PDF directly via html2canvas+jsPDF (works on mobile, where window.print() often fails)
+    async function exportPDF() {
+      // Make sure preview is mounted and visible
+      const wrap = document.querySelector('.pdf-print-only');
+      const pdfNode = wrap?.querySelector('.pdf-form');
+      if (!pdfNode) { alert('Erro: PDF ainda não está pronto.'); return; }
+
+      // Show a quick loading state
+      const btn = document.activeElement;
+      const oldText = btn?.textContent;
+      if (btn) { btn.textContent = '⏳ A gerar...'; btn.disabled = true; }
+
+      // Force the node to be visible offscreen for capture
+      const prevDisplay = wrap.style.display;
+      const prevPos = wrap.style.position;
+      const prevLeft = wrap.style.left;
+      const prevTop = wrap.style.top;
+      const prevZ = wrap.style.zIndex;
+      wrap.style.cssText = 'display:block;position:fixed;left:-10000px;top:0;z-index:-1;background:#fff;';
+
+      try {
+        // Lazy-load libs once
+        if (!window.html2canvas) await loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
+        if (!window.jspdf) await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+
+        // Wait for fonts/images
+        if (document.fonts) await document.fonts.ready;
+        await new Promise(r => setTimeout(r, 100));
+
+        const canvas = await window.html2canvas(pdfNode, {
+          scale: 2,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: '#ffffff',
+          width: 794,
+          height: 1123,
+          windowWidth: 794,
+          windowHeight: 1123,
+        });
+        const imgData = canvas.toDataURL('image/jpeg', 0.92);
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+        pdf.addImage(imgData, 'JPEG', 0, 0, 210, 297, undefined, 'FAST');
+
+        const fileName = `Experiencia_Bimby_${new Date().toISOString().slice(0,10)}.pdf`;
+        pdf.save(fileName);
+      } catch (e) {
+        console.error(e);
+        alert('Não foi possível gerar o PDF: ' + (e.message || e));
+      } finally {
+        // Restore wrap style
+        wrap.style.display = prevDisplay;
+        wrap.style.position = prevPos;
+        wrap.style.left = prevLeft;
+        wrap.style.top = prevTop;
+        wrap.style.zIndex = prevZ;
+        if (btn && oldText) { btn.textContent = oldText; btn.disabled = false; }
+      }
+    }
+
+    function loadScript(src) {
+      return new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = src; s.onload = resolve; s.onerror = () => reject(new Error('Falha a carregar ' + src));
+        document.head.appendChild(s);
+      });
+    }
+
     function App() {
       const [variant, setVariant] = React.useState(() => localStorage.getItem("bimby-variant") || "wizard");
       const [savedAt, setSavedAt] = React.useState(null);
@@ -149,18 +256,26 @@
         <>
           <div className="variant-tabs">
             <span className="brand">bimby<sup style={{ fontSize: 10 }}>®</sup></span>
-            {variants.map((v) => (
-              <button key={v.id} className={variant === v.id ? "on" : ""} onClick={() => setVariant(v.id)}>
-                {v.label}
-              </button>
-            ))}
+            <div className="variant-buttons" style={{ display: "flex", gap: 8 }}>
+              {variants.map((v) => (
+                <button key={v.id} className={variant === v.id ? "on" : ""} onClick={() => setVariant(v.id)}>
+                  {v.label}
+                </button>
+              ))}
+            </div>
+            <select className="variant-picker" value={variant} onChange={(e) => setVariant(e.target.value)}
+              style={{ display: "none", flex: 1, padding: "10px 12px", borderRadius: 8, border: "1px solid #eef0ec", fontSize: 13, fontFamily: "inherit", background: "#fff", minHeight: 44 }}>
+              {variants.map((v) => <option key={v.id} value={v.id}>{v.label}</option>)}
+            </select>
             <span className="saved">{savedLabel}</span>
-            <button onClick={() => setPreviewing(p => !p)} style={{ background: previewing ? "#1f7a48" : "#fff", color: previewing ? "#fff" : "#1f7a48", borderColor: "#1f7a48" }}>
-              {previewing ? "← Voltar" : "👁 Pré-visualizar PDF"}
-            </button>
-            <button onClick={() => window.print()} style={{ background: "#D9192C", color: "#fff", borderColor: "#D9192C" }}>
-              📄 Exportar PDF
-            </button>
+            <div className="actions" style={{ display: "flex", gap: 8 }}>
+              <button onClick={() => setPreviewing(p => !p)} style={{ background: previewing ? "#1f7a48" : "#fff", color: previewing ? "#fff" : "#1f7a48", borderColor: "#1f7a48" }}>
+                {previewing ? "← Voltar" : "👁 Pré-visualizar"}
+              </button>
+              <button onClick={exportPDF} style={{ background: "#D9192C", color: "#fff", borderColor: "#D9192C" }}>
+                📄 Exportar PDF
+              </button>
+            </div>
           </div>
 
           <div className="variant-shell">
